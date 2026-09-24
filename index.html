@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Block World - Jogo 3D Voxel</title>
+  <meta name="description" content="Jogo 3D de blocos para navegador inspirado em Minecraft, construído em HTML, CSS e JavaScript com Three.js.">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Canvas 3D do Three.js -->
+  <div id="canvas-container"></div>
+
+  <!-- Mira central -->
+  <div id="crosshair" class="hidden"></div>
+
+  <!-- HUD superior (Coordenadas / Info) -->
+  <div id="top-hud">
+    <div id="debug-coords" class="hud-badge">XYZ: 0.0 / 0.0 / 0.0</div>
+  </div>
+
+  <!-- Barra de blocos inferior (Hotbar) -->
+  <div id="hotbar-wrapper">
+    <div id="selected-block-label">
+      Bloco: <span id="selected-block-name">Grama</span>
+    </div>
+    <div id="hotbar"></div>
+  </div>
+
+  <!-- Tela Inicial e de Pausa (Overlay) -->
+  <div id="screen-overlay">
+    <div class="overlay-modal">
+      <div class="title-container">
+        <h1 id="overlay-title" class="overlay-title">BLOCK WORLD</h1>
+        <p class="overlay-subtitle">Mundo Voxel 3D no Navegador</p>
+      </div>
+
+      <button id="play-btn" class="btn-play">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+          <polygon points="5 3 19 12 5 21 5 3"></polygon>
+        </svg>
+        JOGAR
+      </button>
+
+      <div class="controls-container">
+        <div class="controls-header">Controles do Jogo</div>
+        <p class="controls-text">
+          <span class="key-badge">W</span><span class="key-badge">A</span><span class="key-badge">S</span><span class="key-badge">D</span> para mover
+          <span class="controls-divider">•</span>
+          <span class="key-badge">Espaço</span> para pular
+          <span class="controls-divider">•</span>
+          <span class="key-badge">Mouse</span> para olhar
+          <br>
+          <span class="key-badge">Clique Esquerdo</span> para quebrar
+          <span class="controls-divider">•</span>
+          <span class="key-badge">Clique Direito</span> para construir
+          <br>
+          <span class="key-badge">1 - 5</span> ou <span class="key-badge">Scroll</span> para escolher bloco
+          <span class="controls-divider">•</span>
+          <span class="key-badge">ESC</span> para pausar
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts do Jogo (Three.js local com fallback para CDN) -->
+  <script src="js/libs/three.min.js"></script>
+  <script>
+    if (typeof THREE === 'undefined') {
+      document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"><\\/script>');
+    }
+  </script>
+
+  <!-- Módulos da aplicação -->
+  <script src="js/blocks.js"></script>
+  <script src="js/world.js"></script>
+  <script src="js/physics.js"></script>
+  <script src="js/player.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/input.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>

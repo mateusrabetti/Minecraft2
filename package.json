@@ -1,0 +1,12 @@
+{
+  "name": "minecraft2",
+  "version": "1.0.0",
+  "description": "Jogo 3D de blocos para navegador inspirado em Minecraft",
+  "scripts": {
+    "start": "python -m http.server 8080",
+    "serve": "npx serve ."
+  },
+  "keywords": ["voxel", "minecraft", "threejs", "game", "3d"],
+  "author": "",
+  "license": "MIT"
+}
