@@ -1,82 +1,124 @@
-# Block World (Minecraft 3D Voxel)
+# Block World - Sobrevivência Voxel 3D
 
-Um jogo 3D de blocos para navegador, inspirado no Minecraft, construído **exclusivamente com HTML, CSS, JavaScript puro e Three.js**.
+Um jogo 3D de sobrevivência voxel para navegador inspirado em Minecraft, construído **exclusivamente com HTML, CSS, JavaScript modular e Three.js**.
 
 ---
 
 ## 🎮 Como Jogar
 
-Você pode rodar o jogo de duas formas muito simples:
+O servidor local já pode ser iniciado via:
 
-### Opção 1: Servidor Local (Recomendado)
-Execute no terminal da pasta do projeto:
 ```bash
 npm start
+# ou: python -m http.server 8080
 ```
-*(ou `python -m http.server 8080`)*
 
-Em seguida, abra no navegador:
+Em seguida, acesse no navegador:
 👉 **[http://localhost:8080](http://localhost:8080)**
-
-### Opção 2: Direto no Arquivo
-Abra o arquivo [`index.html`](file:///c:/Users/Aluno/Documents/Minecraft2/index.html) diretamente com dois cliques em qualquer navegador moderno (Chrome, Edge, Firefox, Brave). A biblioteca Three.js já está incluída localmente na pasta `js/libs/`.
 
 ---
 
 ## 🕹️ Controles
 
-| Ação | Controle |
+| Ação | Tecla / Controle |
 | :--- | :--- |
 | **Mover** | <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> |
 | **Pular** | <kbd>Espaço</kbd> |
-| **Correr (Sprint)** | <kbd>Shift</kbd> |
-| **Olhar ao redor** | Mover o Mouse |
-| **Quebrar Bloco** | Clique Esquerdo |
-| **Colocar Bloco** | Clique Direito |
-| **Escolher Bloco** | Teclas <kbd>1</kbd> a <kbd>5</kbd> ou Scroll do Mouse |
-| **Pausar / Liberar Mouse** | Tecla <kbd>ESC</kbd> |
+| **Modo de Voo (Ativar / Desativar)** | **Duplo toque rápido em <kbd>Espaço</kbd>** |
+| **Subir (em Voo)** | <kbd>Espaço</kbd> |
+| **Descer (em Voo)** | <kbd>Shift</kbd> |
+| **Correr (no Chão)** | Segurar <kbd>Shift</kbd> |
+| **Nadar na Água** | Pressionar <kbd>Espaço</kbd> dentro d'água |
+| **Abrir / Fechar Inventário** | Tecla <kbd>E</kbd> |
+| **Olhar ao Redor** | Mover o Mouse |
+| **Quebrar Bloco** | Clique Esquerdo do Mouse |
+| **Colocar Bloco** | Clique Direito do Mouse |
+| **Selecionar Slot da Hotbar** | Teclas <kbd>1</kbd> até <kbd>9</kbd> ou **Roda do Mouse (Scroll)** |
+| **Pausar / Menu de Pausa** | Tecla <kbd>ESC</kbd> |
 
 ---
 
-## 🧱 Blocos Disponíveis
+## 🌟 Principais Recursos Desta Versão
 
-1. **Grama**: Topo verde vibrante, lateral estilizada e base terrosa.
-2. **Terra**: Textura orgânica de terra pura.
-3. **Pedra**: Estrutura sólida e resistente.
-4. **Madeira**: Tronco de carvalho com casca e anéis concêntricos.
-5. **Folhas**: Folhagem verde das árvores.
+### 1. Mundo Expandido (128 x 128 Blocos) & Sistema de Chunks
+- Mundo de **128 x 32 x 128 blocos** dividido em **64 Chunks** de 16x32x16.
+- Renderização via `BufferGeometry` com **Face Culling completo**: apenas faces voltadas para ar, líquidos ou blocos transparentes são geradas.
+- Performance de 60 FPS com reconstrução cirúrgica de chunks apenas quando blocos são modificados.
+
+### 2. Geração Procedural Baseada em Seed & Biomas
+- Gerador determinístico baseado em **Mulberry32 e 2D Perlin Noise com oitavas**.
+- **Biomas Dinâmicos**:
+  - **Planície**: Terreno suave, grama, flores e árvores ocasionais.
+  - **Floresta**: Terreno ondulado com alta densidade de árvores de carvalho.
+  - **Deserto**: Dunas suaves com blocos de areia.
+  - **Montanhas**: Picos elevados de rochas expostas.
+  - **Lagos e Praias**: Água transparente no nível do mar (Y=10) com faixas de areia.
+- **Árvores Procedurais**: Troncos de madeira com copas de folhas.
+- **Mineração Subterrânea**: Camadas de pedra com veios de minério de carvão e minério de ferro.
+
+### 3. Menu de Mundos e Gerenciamento
+- **Menu Principal**: Botões *Jogar*, *Mundos* e *Configurações*.
+- **Meus Mundos**: Lista de mundos salvos com nome, seed, data da última partida, botões *Entrar* e *Excluir*.
+- **Criar Novo Mundo**: Permite definir nome, digitar uma seed customizada ou clicar em **🎲 ALEATÓRIA**.
+- Transição fluida entre menu e mundo 3D.
+
+### 4. Sistema de Salvamento no `localStorage`
+- Persistência automática do progresso ao sair para o menu e a cada 20 segundos.
+- **Salvamento Compacto por Deltas**: Armazena apenas blocos alterados (`modifiedBlocks`), posição e rotação do jogador, modo de voo, e o estado completo dos 36 slots do inventário.
+- Não estoura a cota do `localStorage` e permite múltiplos mundos.
+
+### 5. Inventário Completo (36 Slots) & Hotbar (9 Slots)
+- Ao pressionar <kbd>E</kbd>, abre o inventário no centro da tela.
+- **Mochila com 27 slots (3x9) + Hotbar com 9 slots (1x9)**.
+- **Interação Intuitiva com o Mouse**:
+  - Clique esquerdo: pegar item, soltar stack, trocar de slot ou empilhar (máximo 64 por stack).
+  - Clique direito: dividir stack pela metade ou soltar 1 unidade por vez.
+- Destruição de blocos coleta os recursos para o inventário.
+- Construção consome blocos do slot selecionado na Hotbar.
+
+### 6. Sistema de Voo com Duplo Pulo
+- Ativado com dois toques rápidos no <kbd>Espaço</kbd>.
+- Gravidade desativada, movimentação livre no espaço com <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>, subir com <kbd>Espaço</kbd> e descer com <kbd>Shift</kbd>.
+- **Colisões preservadas**: o jogador não atravessa paredes sólidas nem mesmo durante o voo.
+- Indicador animado **✈ MODO VOO** no HUD superior.
+
+### 7. Novos Blocos com Texturas Procedurais
+1. **Grama** (`BLOCK_GRASS`)
+2. **Terra** (`BLOCK_DIRT`)
+3. **Pedra** (`BLOCK_STONE`)
+4. **Tronco de Madeira** (`BLOCK_WOOD`)
+5. **Folhas** (`BLOCK_LEAVES`)
+6. **Areia** (`BLOCK_SAND`)
+7. **Minério de Carvão** (`BLOCK_COAL_ORE`)
+8. **Minério de Ferro** (`BLOCK_IRON_ORE`)
+9. **Vidro** (`BLOCK_GLASS`) - Translúcido
+10. **Tábuas de Madeira** (`BLOCK_PLANKS`)
+11. **Tijolos** (`BLOCK_BRICKS`)
+12. **Água** (`BLOCK_WATER`) - Líquido translúcido com física de nado
 
 ---
 
-## 🏗️ Arquitetura e Estrutura do Projeto
-
-O código foi cuidadosamente modularizado para facilitar a expansão contínua em etapas futuras:
+## 🏗️ Arquitetura Modular dos Arquivos
 
 ```
 Minecraft2/
-├── index.html          # Estrutura HTML, HUD, mira e tela inicial/pausa
-├── style.css           # Estilos visuais, glassmorphism, hotbar e menus
-├── package.json        # Configuração e scripts de execução
-├── README.md           # Documentação completa
+├── index.html          # Layout dos menus, HUD, inventário e canvas 3D
+├── style.css           # Estilização dark glassmorphism, inventário e HUD
+├── package.json        # Scripts de execução
+├── README.md           # Documentação completa do projeto
 └── js/
     ├── libs/
-    │   └── three.min.js# Three.js r128 (modo offline garantido)
-    ├── blocks.js       # Definições dos blocos, texturas procedurais 16x16 e materiais
-    ├── world.js        # Voxel grid 3D (32x16x32), terreno, árvores e raycasting DDA
-    ├── physics.js      # Gravidade, pulo e resolução de colisão AABB (eixos separados)
-    ├── player.js       # Câmera em primeira pessoa, movimentação e interação
-    ├── input.js        # Captura de teclado, mouse e Pointer Lock API
-    ├── ui.js           # Gerenciamento da hotbar, mira, coordenadas e telas
-    └── main.js         # Loop principal (requestAnimationFrame) e iluminação
+    │   └── three.min.js# Three.js local para execução offline
+    ├── blocks.js       # Definições, propriedades e Texture Atlas 16x16
+    ├── terrain.js      # Gerador procedural de relevo, ruído Perlin e biomas
+    ├── chunk.js        # Gerenciador de chunks 16x32x16 e malha BufferGeometry
+    ├── world.js        # Mundo 128x32x128, raycasting DDA e árvores
+    ├── physics.js      # Colisão AABB, gravidade, água e física de voo
+    ├── inventory.js    # 36 slots, regras de empilhamento e manipulação de stacks
+    ├── saveSystem.js   # Persistência em localStorage (deltas e metadados)
+    ├── worldManager.js # Orquestração do ciclo de vida dos mundos
+    ├── player.js       # Câmera, duplo pulo, quebra e colocação de blocos
+    ├── ui.js           # Menus, lista de mundos, inventário visual e HUD
+    ├── input.js        # Teclado, mouse, pointer lock e detecção de duplo pulo
+    └── main.js         # Loop principal, Three.js e máquina de estados
 ```
-
----
-
-## ⚙️ Principais Destaques Técnicos
-
-- **Física Robusta (AABB)**: Resolução de colisão desacoplada nos eixos X, Z e Y. Permite andar pelas paredes sem prender, detectar chão com precisão milimétrica e nunca atravessar blocos.
-- **Prevenção de Colocação no Jogador**: Não é possível colocar blocos que intersectem o corpo do jogador.
-- **Raycasting DDA Rápido**: Algoritmo *Fast Voxel Traversal* (DDA) que encontra o bloco exato e sua normal sem travamentos.
-- **Renderização Otimizada**: Utiliza `THREE.InstancedMesh` com culling de faces internas (apenas blocos expostos ao ar são desenhados).
-- **Sem Dependência de Imagens Externas**: Texturas pixel-art de 16x16 geradas proceduralmente via Canvas 2D em tempo de execução.
-- **Áudio Sintetizado**: Sons sutis e crocantes de quebra e colocação usando a Web Audio API nativa.

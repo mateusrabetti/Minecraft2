@@ -1,142 +1,259 @@
 // =============================================================================
-// js/world.js - Mundo 3D de Blocos, Geração de Terreno e Raycasting DDA
+// js/world.js - Gerenciamento do Mundo 128x32x128, Chunks, Raycasting DDA
 // =============================================================================
 
 class World {
-  constructor(scene) {
+  constructor(scene, seed = 12345, savedModifiedBlocks = null) {
     this.scene = scene;
+    this.seed = seed;
 
-    // Dimensões do mundo inicial (32x16x32)
-    this.sizeX = 32;
-    this.sizeY = 16;
-    this.sizeZ = 32;
+    // Dimensões do mundo: 128 x 32 x 128 blocos
+    this.sizeX = 128;
+    this.sizeY = 32;
+    this.sizeZ = 128;
 
-    // Array linear de dados para máxima performance
-    this.data = new Uint8Array(this.sizeX * this.sizeY * this.sizeZ);
+    // Grid de Chunks: 8 x 8 = 64 chunks (cada chunk 16x32x16)
+    this.numChunksX = this.sizeX / CHUNK_SIZE_X; // 8
+    this.numChunksZ = this.sizeZ / CHUNK_SIZE_Z; // 8
 
-    // InstancedMeshes para cada tipo de bloco visível
-    this.meshes = {};
-    this.maxInstancesPerBlock = 4096;
+    this.chunks = new Array(this.numChunksX * this.numChunksZ);
 
-    // Geometria padrão de cubo 1x1x1
-    this.boxGeometry = new THREE.BoxGeometry(1, 1, 1);
-    this.dummy = new THREE.Object3D();
+    // Dicionário de blocos modificados pelo jogador para persistência compacta
+    this.modifiedBlocks = savedModifiedBlocks ? { ...savedModifiedBlocks } : {};
 
-    this.initMeshes();
+    // Gerador de terreno procedural com seed
+    this.terrain = new TerrainGenerator(this.seed);
+
+    // Inicializa a estrutura de chunks e adiciona à cena
+    this.initChunks();
+
+    // Gera o terreno procedural
     this.generateTerrain();
-    this.rebuildMeshes();
+
+    // Aplica as modificações salvas do jogador
+    this.applyModifiedBlocks();
+
+    // Constrói as malhas visuais de todos os chunks
+    this.buildAllChunkMeshes();
   }
 
-  // Índice linear no array de dados
-  getIndex(x, y, z) {
-    return x + z * this.sizeX + y * (this.sizeX * this.sizeZ);
+  getChunkIndex(cx, cz) {
+    if (cx < 0 || cx >= this.numChunksX || cz < 0 || cz >= this.numChunksZ) return -1;
+    return cx + cz * this.numChunksX;
   }
 
-  // Verifica se a coordenada está dentro dos limites do mundo
+  getChunk(cx, cz) {
+    const idx = this.getChunkIndex(cx, cz);
+    return idx !== -1 ? this.chunks[idx] : null;
+  }
+
+  initChunks() {
+    for (let cx = 0; cx < this.numChunksX; cx++) {
+      for (let cz = 0; cz < this.numChunksZ; cz++) {
+        const chunk = new Chunk(cx, cz, this);
+        this.chunks[this.getChunkIndex(cx, cz)] = chunk;
+        this.scene.add(chunk.group);
+      }
+    }
+  }
+
   inBounds(x, y, z) {
     return x >= 0 && x < this.sizeX && y >= 0 && y < this.sizeY && z >= 0 && z < this.sizeZ;
   }
 
-  // Obtém o tipo de bloco na posição
   getBlock(x, y, z) {
     if (!this.inBounds(x, y, z)) {
-      if (y < 0) return BLOCK_STONE; // Base sólida infinita para não cair no vazio
+      if (y < 0) return BLOCK_STONE; // Chão base para não cair no infinito
       return BLOCK_AIR;
     }
-    return this.data[this.getIndex(x, y, z)];
+    const cx = Math.floor(x / CHUNK_SIZE_X);
+    const cz = Math.floor(z / CHUNK_SIZE_Z);
+    const chunk = this.getChunk(cx, cz);
+    if (!chunk) return BLOCK_AIR;
+
+    const lx = x & 15;
+    const lz = z & 15;
+    return chunk.getLocalBlock(lx, y, lz);
   }
 
-  // Altera um bloco e reconstrói as malhas visíveis
-  setBlock(x, y, z, type) {
+  setBlock(x, y, z, type, recordModification = true) {
     if (!this.inBounds(x, y, z)) return false;
-    this.data[this.getIndex(x, y, z)] = type;
-    this.rebuildMeshes();
+    if (y === 0) return false; // Bedrock inquebrável
+
+    const cx = Math.floor(x / CHUNK_SIZE_X);
+    const cz = Math.floor(z / CHUNK_SIZE_Z);
+    const chunk = this.getChunk(cx, cz);
+    if (!chunk) return false;
+
+    const lx = x & 15;
+    const lz = z & 15;
+
+    chunk.setLocalBlock(lx, y, lz, type);
+
+    if (recordModification) {
+      this.modifiedBlocks[`${x},${y},${z}`] = type;
+    }
+
+    // Rebuild do chunk atual
+    chunk.rebuildMesh();
+
+    // Se estiver na borda do chunk, reconstrói o chunk vizinho correspondente para atualizar face culling
+    if (lx === 0 && cx > 0) {
+      const neighbor = this.getChunk(cx - 1, cz);
+      if (neighbor) { neighbor.markDirty(); neighbor.rebuildMesh(); }
+    }
+    if (lx === 15 && cx < this.numChunksX - 1) {
+      const neighbor = this.getChunk(cx + 1, cz);
+      if (neighbor) { neighbor.markDirty(); neighbor.rebuildMesh(); }
+    }
+    if (lz === 0 && cz > 0) {
+      const neighbor = this.getChunk(cx, cz - 1);
+      if (neighbor) { neighbor.markDirty(); neighbor.rebuildMesh(); }
+    }
+    if (lz === 15 && cz < this.numChunksZ - 1) {
+      const neighbor = this.getChunk(cx, cz + 1);
+      if (neighbor) { neighbor.markDirty(); neighbor.rebuildMesh(); }
+    }
+
     return true;
   }
 
-  // Verifica se o bloco é sólido para colisão
   isSolid(x, y, z) {
-    if (y < 0) return true; // Chão abaixo do mundo é sólido
+    if (y < 0) return true;
     if (!this.inBounds(x, y, z)) return false;
-    const type = this.data[this.getIndex(x, y, z)];
-    return type !== BLOCK_AIR && BLOCK_TYPES[type]?.solid;
+    const type = this.getBlock(x, y, z);
+    return type !== BLOCK_AIR && BLOCK_TYPES[type]?.solid === true;
   }
 
-  // Inicializa as malhas instanciadas (InstancedMesh) para cada bloco
-  initMeshes() {
-    const types = [BLOCK_GRASS, BLOCK_DIRT, BLOCK_STONE, BLOCK_WOOD, BLOCK_LEAVES];
-
-    types.forEach((type) => {
-      const material = BLOCK_MATERIALS[type];
-      const mesh = new THREE.InstancedMesh(this.boxGeometry, material, this.maxInstancesPerBlock);
-      mesh.count = 0;
-      mesh.castShadow = false;
-      mesh.receiveShadow = false;
-      this.scene.add(mesh);
-      this.meshes[type] = mesh;
-    });
+  isLiquid(x, y, z) {
+    if (!this.inBounds(x, y, z)) return false;
+    const type = this.getBlock(x, y, z);
+    return BLOCK_TYPES[type]?.isLiquid === true;
   }
 
-  // Geração do terreno inicial com relevo suave e árvores
+  getBiome(x, z) {
+    return this.terrain.getBiome(x, z);
+  }
+
+  // Gera terreno procedural para todo o mundo
   generateTerrain() {
+    const seaLevel = 10;
+    const potentialTrees = [];
+
     for (let x = 0; x < this.sizeX; x++) {
+      const cx = Math.floor(x / CHUNK_SIZE_X);
+      const lx = x & 15;
+
       for (let z = 0; z < this.sizeZ; z++) {
-        // Cálculo de elevação suave usando senos e cossenos
-        const hill = Math.sin(x * 0.22) * 1.5 + Math.cos(z * 0.22) * 1.5 + Math.sin((x + z) * 0.15) * 0.8;
-        const groundHeight = Math.max(3, Math.min(8, Math.floor(4 + hill)));
+        const cz = Math.floor(z / CHUNK_SIZE_Z);
+        const lz = z & 15;
+        const chunk = this.getChunk(cx, cz);
+
+        const groundHeight = this.terrain.getHeight(x, z);
+        const biome = this.terrain.getBiome(x, z);
 
         for (let y = 0; y < this.sizeY; y++) {
-          const idx = this.getIndex(x, y, z);
+          let block = BLOCK_AIR;
+
           if (y === 0) {
-            this.data[idx] = BLOCK_STONE; // Bedrock
-          } else if (y < groundHeight - 2) {
-            this.data[idx] = BLOCK_STONE;
+            // Camada 0: Bedrock inquebrável
+            block = BLOCK_STONE;
           } else if (y < groundHeight) {
-            this.data[idx] = BLOCK_DIRT;
+            // Subsolo
+            if (y < groundHeight - 3) {
+              // Pedra com veios de minérios
+              block = BLOCK_STONE;
+
+              // Minério de ferro (mais profundo, Y: 1 a 12)
+              if (y <= 12 && this.terrain.localHash(x, y, z, 101) < 0.02) {
+                block = BLOCK_IRON_ORE;
+              }
+              // Minério de carvão (Y: 2 a 20)
+              else if (y <= 20 && this.terrain.localHash(x, y, z, 202) < 0.035) {
+                block = BLOCK_COAL_ORE;
+              }
+            } else {
+              // Camadas próximas à superfície
+              if (biome === 'DESERT') {
+                block = BLOCK_SAND;
+              } else if (groundHeight <= seaLevel + 1) {
+                block = BLOCK_SAND; // Praia perto da água
+              } else {
+                block = BLOCK_DIRT;
+              }
+            }
           } else if (y === groundHeight) {
-            this.data[idx] = BLOCK_GRASS;
-          } else {
-            this.data[idx] = BLOCK_AIR;
+            // Superfície
+            if (biome === 'DESERT') {
+              block = BLOCK_SAND;
+            } else if (biome === 'MOUNTAIN' && groundHeight > 20) {
+              block = BLOCK_STONE; // Picos rochosos expostos
+            } else if (groundHeight <= seaLevel + 1) {
+              block = BLOCK_SAND; // Praia na linha da água
+            } else {
+              block = BLOCK_GRASS;
+            }
+          } else if (y <= seaLevel && y > groundHeight) {
+            // Água até o nível do mar
+            block = BLOCK_WATER;
+          }
+
+          chunk.setLocalBlock(lx, y, lz, block);
+        }
+
+        // Verifica candidatos para geração de árvores
+        if (groundHeight > seaLevel + 1 && groundHeight + 6 < this.sizeY) {
+          const isGrass = chunk.getLocalBlock(lx, groundHeight, lz) === BLOCK_GRASS;
+          if (isGrass) {
+            if (biome === 'FOREST' && this.terrain.localHash(x, 0, z, 303) < 0.04) {
+              potentialTrees.push({ x, y: groundHeight, z });
+            } else if (biome === 'PLAINS' && this.terrain.localHash(x, 0, z, 303) < 0.008) {
+              potentialTrees.push({ x, y: groundHeight, z });
+            }
           }
         }
       }
     }
 
-    // Adiciona algumas árvores no mundo
-    const treePositions = [
-      { x: 8, z: 8 },
-      { x: 23, z: 9 },
-      { x: 9, z: 23 },
-      { x: 22, z: 22 }
-    ];
-
-    treePositions.forEach((pos) => {
-      this.createTree(pos.x, pos.z);
-    });
-  }
-
-  // Cria uma árvore com tronco de madeira e copa de folhas
-  createTree(x, z) {
-    if (!this.inBounds(x, 0, z)) return;
-
-    // Encontra a altura do chão
-    let groundY = -1;
-    for (let y = this.sizeY - 1; y >= 0; y--) {
-      if (this.getBlock(x, y, z) === BLOCK_GRASS) {
-        groundY = y;
-        break;
+    // Filtra árvores para manter distância natural de pelo menos 4 blocos
+    const filteredTrees = [];
+    for (const tree of potentialTrees) {
+      let tooClose = false;
+      for (const existing of filteredTrees) {
+        const dx = tree.x - existing.x;
+        const dz = tree.z - existing.z;
+        if (dx * dx + dz * dz < 16) {
+          tooClose = true;
+          break;
+        }
+      }
+      if (!tooClose) {
+        filteredTrees.push(tree);
       }
     }
 
-    if (groundY === -1 || groundY + 5 >= this.sizeY) return;
+    // Cria as árvores filtradas
+    for (const tree of filteredTrees) {
+      this.createTree(tree.x, tree.y, tree.z);
+    }
+  }
 
-    const trunkHeight = 4;
+  // Gera uma árvore com tronco de madeira e copa de folhas
+  createTree(x, groundY, z) {
+    // Evita árvores nas bordas externas do mapa
+    if (x < 3 || x >= this.sizeX - 3 || z < 3 || z >= this.sizeZ - 3) return;
+
+    const trunkHeight = 4 + Math.floor(this.terrain.localHash(x, groundY, z, 404) * 2); // 4 ou 5 blocos
+
     // Tronco
     for (let ty = 1; ty <= trunkHeight; ty++) {
-      this.data[this.getIndex(x, groundY + ty, z)] = BLOCK_WOOD;
+      const y = groundY + ty;
+      if (y < this.sizeY) {
+        this.rawSetBlock(x, y, z, BLOCK_WOOD);
+      }
     }
 
-    // Copa de folhas
+    // Copa de folhas (esfera/cubo aparado)
     const leafBase = groundY + trunkHeight - 1;
     for (let lx = -2; lx <= 2; lx++) {
       for (let lz = -2; lz <= 2; lz++) {
@@ -147,12 +264,11 @@ class World {
 
           // Arredonda cantos da copa
           if (Math.abs(lx) === 2 && Math.abs(lz) === 2 && ly >= 1) continue;
-          if (Math.abs(lx) === 2 && Math.abs(lz) === 2 && Math.random() > 0.4) continue;
 
           if (this.inBounds(tx, ty, tz)) {
             const current = this.getBlock(tx, ty, tz);
             if (current === BLOCK_AIR) {
-              this.data[this.getIndex(tx, ty, tz)] = BLOCK_LEAVES;
+              this.rawSetBlock(tx, ty, tz, BLOCK_LEAVES);
             }
           }
         }
@@ -160,74 +276,42 @@ class World {
     }
   }
 
-  // Verifica se um bloco tem pelo menos uma face exposta ao ar
-  isBlockExposed(x, y, z) {
-    const neighbors = [
-      [x + 1, y, z],
-      [x - 1, y, z],
-      [x, y + 1, z],
-      [x, y - 1, z],
-      [x, y, z + 1],
-      [x, y, z - 1]
-    ];
-
-    for (let i = 0; i < neighbors.length; i++) {
-      const [nx, ny, nz] = neighbors[i];
-      if (!this.inBounds(nx, ny, nz) || this.getBlock(nx, ny, nz) === BLOCK_AIR) {
-        return true;
-      }
+  // Define bloco direto sem notificar / marcar dirty individualmente durante geração inicial
+  rawSetBlock(x, y, z, type) {
+    if (!this.inBounds(x, y, z)) return;
+    const cx = Math.floor(x / CHUNK_SIZE_X);
+    const cz = Math.floor(z / CHUNK_SIZE_Z);
+    const chunk = this.getChunk(cx, cz);
+    if (chunk) {
+      chunk.setLocalBlock(x & 15, y, z & 15, type);
     }
-    return false;
   }
 
-  // Atualiza as instâncias renderizadas na tela (Face culling)
-  rebuildMeshes() {
-    // Listas de posições por bloco
-    const blockInstances = {
-      [BLOCK_GRASS]: [],
-      [BLOCK_DIRT]: [],
-      [BLOCK_STONE]: [],
-      [BLOCK_WOOD]: [],
-      [BLOCK_LEAVES]: []
-    };
-
-    // Varredura de blocos visíveis
-    for (let x = 0; x < this.sizeX; x++) {
-      for (let y = 0; y < this.sizeY; y++) {
-        for (let z = 0; z < this.sizeZ; z++) {
-          const type = this.data[this.getIndex(x, y, z)];
-          if (type !== BLOCK_AIR && this.isBlockExposed(x, y, z)) {
-            if (blockInstances[type]) {
-              blockInstances[type].push({ x, y, z });
-            }
-          }
-        }
+  // Aplica as modificações de blocos salvas no localStorage
+  applyModifiedBlocks() {
+    if (!this.modifiedBlocks) return;
+    for (const key of Object.keys(this.modifiedBlocks)) {
+      const parts = key.split(',');
+      if (parts.length === 3) {
+        const x = parseInt(parts[0], 10);
+        const y = parseInt(parts[1], 10);
+        const z = parseInt(parts[2], 10);
+        const type = this.modifiedBlocks[key];
+        this.rawSetBlock(x, y, z, type);
       }
     }
+  }
 
-    // Atualiza cada InstancedMesh
-    Object.keys(blockInstances).forEach((typeStr) => {
-      const type = parseInt(typeStr, 10);
-      const instances = blockInstances[type];
-      const mesh = this.meshes[type];
-      if (!mesh) return;
-
-      mesh.count = Math.min(instances.length, this.maxInstancesPerBlock);
-
-      for (let i = 0; i < mesh.count; i++) {
-        const { x, y, z } = instances[i];
-        this.dummy.position.set(x + 0.5, y + 0.5, z + 0.5);
-        this.dummy.updateMatrix();
-        mesh.setMatrixAt(i, this.dummy.matrix);
-      }
-
-      mesh.instanceMatrix.needsUpdate = true;
-    });
+  // Constrói todas as malhas dos chunks
+  buildAllChunkMeshes() {
+    for (let i = 0; i < this.chunks.length; i++) {
+      this.chunks[i].rebuildMesh();
+    }
   }
 
   /**
-   * Algoritmo DDA Voxel Traversal para Raycasting rápido e preciso.
-   * Dispara um raio a partir da câmera e encontra exatamente o bloco olhado e a face normal.
+   * Algoritmo DDA Voxel Traversal para Raycasting de precisão.
+   * Permite mirar e quebrar blocos sob a água atravessando a água.
    */
   raycast(origin, direction, maxDistance = 5.0) {
     const px = origin.x;
@@ -256,7 +340,8 @@ class World {
     while (distance <= maxDistance) {
       if (this.inBounds(x, y, z)) {
         const block = this.getBlock(x, y, z);
-        if (block !== BLOCK_AIR) {
+        // Não mira na água para que o jogador possa mirar nos blocos embaixo d'água
+        if (block !== BLOCK_AIR && block !== BLOCK_WATER) {
           return {
             hit: true,
             block: { x, y, z },
@@ -295,5 +380,17 @@ class World {
     }
 
     return null;
+  }
+
+  // Remove malhas da cena ao trocar de mundo
+  dispose() {
+    for (let i = 0; i < this.chunks.length; i++) {
+      const chunk = this.chunks[i];
+      if (chunk) {
+        this.scene.remove(chunk.group);
+        chunk.dispose();
+      }
+    }
+    this.chunks = [];
   }
 }

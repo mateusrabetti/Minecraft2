@@ -1,8 +1,8 @@
 /* =============================================================================
-   style.css - Estilos Visuais do Jogo, Interface, Hotbar, Mira e Menus
+   style.css - Design do Jogo, Menus de Mundos, Inventário, Hotbar e HUD
    ============================================================================= */
 
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap');
 
 * {
   box-sizing: border-box;
@@ -16,7 +16,7 @@ html, body {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background-color: #0b101b;
+  background-color: #080d1a;
   font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   color: #ffffff;
 }
@@ -75,12 +75,14 @@ html, body {
   height: 20px;
 }
 
-#crosshair.hidden {
-  opacity: 0;
+.hidden {
+  display: none !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
 }
 
 /* =============================================================================
-   HUD SUPERIOR (DEBUG & INFO)
+   HUD SUPERIOR (DEBUG, COORDENADAS, BIOMA, VOO)
    ============================================================================= */
 #top-hud {
   position: fixed;
@@ -94,10 +96,10 @@ html, body {
 }
 
 .hud-badge {
-  background: rgba(13, 20, 36, 0.65);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(13, 20, 36, 0.75);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
   padding: 6px 12px;
   border-radius: 8px;
   font-family: 'JetBrains Mono', monospace;
@@ -105,21 +107,36 @@ html, body {
   letter-spacing: 0.5px;
   color: #e2e8f0;
   width: fit-content;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.hud-badge-fly {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.8), rgba(217, 119, 6, 0.85));
+  border-color: rgba(251, 191, 36, 0.6);
+  color: #ffffff;
+  font-weight: 700;
+  box-shadow: 0 0 16px rgba(245, 158, 11, 0.5);
+  animation: pulseFly 1.5s infinite alternate ease-in-out;
+}
+
+@keyframes pulseFly {
+  from { transform: scale(1); filter: drop-shadow(0 0 4px rgba(245, 158, 11, 0.4)); }
+  to { transform: scale(1.04); filter: drop-shadow(0 0 10px rgba(245, 158, 11, 0.8)); }
 }
 
 /* =============================================================================
-   HOTBAR (BARRA DE SELEÇÃO DE BLOCOS INFERIOR)
+   HOTBAR (BARRA DE 9 SLOTS INFERIOR)
    ============================================================================= */
 #hotbar-wrapper {
   position: fixed;
-  bottom: 24px;
+  bottom: 20px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 10;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   pointer-events: none;
 }
 
@@ -127,59 +144,57 @@ html, body {
   font-size: 0.85rem;
   font-weight: 600;
   letter-spacing: 0.8px;
-  text-transform: uppercase;
   color: #ffffff;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
-  background: rgba(15, 23, 42, 0.7);
-  backdrop-filter: blur(6px);
-  padding: 4px 12px;
+  background: rgba(15, 23, 42, 0.8);
+  backdrop-filter: blur(8px);
+  padding: 4px 14px;
   border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  transition: opacity 0.3s ease;
+  border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 #hotbar {
   display: flex;
-  gap: 8px;
-  background: rgba(15, 23, 42, 0.75);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  padding: 8px;
-  border-radius: 14px;
+  gap: 6px;
+  background: rgba(15, 23, 42, 0.82);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  padding: 6px;
+  border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.16);
-  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.5), 0 0 15px rgba(59, 130, 246, 0.1);
+  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.6), 0 0 15px rgba(56, 189, 248, 0.12);
   pointer-events: auto;
 }
 
 .hotbar-slot {
   position: relative;
-  width: 52px;
-  height: 52px;
+  width: 48px;
+  height: 48px;
   background: rgba(30, 41, 59, 0.7);
   border: 2px solid rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .hotbar-slot:hover {
-  background: rgba(51, 65, 85, 0.8);
+  background: rgba(51, 65, 85, 0.85);
   transform: translateY(-2px);
 }
 
 .hotbar-slot.active {
   border-color: #38bdf8;
-  background: rgba(56, 189, 248, 0.2);
-  box-shadow: 0 0 16px rgba(56, 189, 248, 0.5), inset 0 0 8px rgba(56, 189, 248, 0.25);
-  transform: translateY(-4px) scale(1.08);
+  background: rgba(56, 189, 248, 0.22);
+  box-shadow: 0 0 16px rgba(56, 189, 248, 0.6), inset 0 0 8px rgba(56, 189, 248, 0.3);
+  transform: translateY(-4px) scale(1.06);
 }
 
 .slot-icon {
-  width: 32px;
-  height: 32px;
+  width: 30px;
+  height: 30px;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4));
@@ -189,51 +204,60 @@ html, body {
 .slot-key {
   position: absolute;
   top: 2px;
-  left: 5px;
+  left: 4px;
   font-size: 0.65rem;
   font-family: 'JetBrains Mono', monospace;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(255, 255, 255, 0.65);
+  pointer-events: none;
+}
+
+.slot-count {
+  position: absolute;
+  bottom: 2px;
+  right: 4px;
+  font-size: 0.75rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 700;
+  color: #ffffff;
+  text-shadow: 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;
   pointer-events: none;
 }
 
 /* =============================================================================
-   TELA INICIAL / TELA DE PAUSA (OVERLAY)
+   TELAS E MODAIS (OVERLAYS)
    ============================================================================= */
-#screen-overlay {
+.screen-overlay {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(9, 14, 26, 0.78);
+  background: rgba(9, 14, 26, 0.82);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 100;
-  opacity: 1;
-  visibility: visible;
-  transition: opacity 0.3s ease, visibility 0.3s ease;
+  animation: fadeIn 0.25s ease-out;
 }
 
-#screen-overlay.hidden {
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .overlay-modal {
-  background: linear-gradient(145deg, rgba(26, 36, 60, 0.85), rgba(15, 23, 42, 0.95));
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: linear-gradient(145deg, rgba(26, 36, 60, 0.9), rgba(15, 23, 42, 0.98));
+  border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 20px;
-  padding: 40px 48px;
-  max-width: 600px;
+  padding: 36px 42px;
+  max-width: 620px;
   width: 90%;
   text-align: center;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7), 0 0 30px rgba(56, 189, 248, 0.15);
-  animation: modalEnter 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.75), 0 0 30px rgba(56, 189, 248, 0.15);
+  animation: modalEnter 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @keyframes modalEnter {
@@ -248,11 +272,11 @@ html, body {
 }
 
 .title-container {
-  margin-bottom: 24px;
+  margin-bottom: 22px;
 }
 
 .overlay-title {
-  font-size: 2.8rem;
+  font-size: 2.6rem;
   font-weight: 800;
   letter-spacing: 2px;
   background: linear-gradient(135deg, #ffffff 0%, #7dd3fc 50%, #38bdf8 100%);
@@ -269,43 +293,78 @@ html, body {
   font-weight: 400;
 }
 
-.btn-play {
+/* Grupo de Botões dos Menus */
+.menu-button-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.btn-primary {
   background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
   color: #ffffff;
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 12px;
-  padding: 14px 44px;
-  font-size: 1.25rem;
+  padding: 13px 32px;
+  font-size: 1.15rem;
   font-weight: 700;
   font-family: inherit;
-  letter-spacing: 1.5px;
+  letter-spacing: 1.2px;
   cursor: pointer;
-  box-shadow: 0 8px 24px -4px rgba(2, 132, 199, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.3);
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  margin-bottom: 30px;
+  box-shadow: 0 6px 20px -3px rgba(2, 132, 199, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.3);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 10px;
 }
 
-.btn-play:hover {
+.btn-primary:hover {
   background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
   transform: translateY(-2px);
-  box-shadow: 0 12px 30px -4px rgba(14, 165, 233, 0.7), 0 0 15px rgba(56, 189, 248, 0.4);
+  box-shadow: 0 10px 25px -3px rgba(14, 165, 233, 0.7), 0 0 15px rgba(56, 189, 248, 0.4);
 }
 
-.btn-play:active {
+.btn-primary:active {
   transform: translateY(0);
-  box-shadow: 0 4px 12px -2px rgba(2, 132, 199, 0.5);
 }
 
-/* Seção de Controles */
+.btn-secondary {
+  background: rgba(30, 41, 59, 0.7);
+  color: #e2e8f0;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  padding: 12px 28px;
+  font-size: 1.05rem;
+  font-weight: 600;
+  font-family: inherit;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.btn-secondary:hover {
+  background: rgba(51, 65, 85, 0.85);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.25);
+  transform: translateY(-2px);
+}
+
+.btn-secondary:active {
+  transform: translateY(0);
+}
+
+/* Guia de Controles */
 .controls-container {
   background: rgba(15, 23, 42, 0.6);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 14px;
-  padding: 16px 20px;
+  padding: 14px 18px;
   text-align: left;
 }
 
@@ -315,21 +374,21 @@ html, body {
   letter-spacing: 1.2px;
   color: #38bdf8;
   font-weight: 700;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
   text-align: center;
 }
 
 .controls-text {
-  font-size: 0.88rem;
+  font-size: 0.85rem;
   color: #cbd5e1;
-  line-height: 1.8;
+  line-height: 1.7;
   text-align: center;
   font-weight: 400;
 }
 
 .key-badge {
   display: inline-block;
-  background: rgba(51, 65, 85, 0.8);
+  background: rgba(51, 65, 85, 0.85);
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 4px;
   padding: 1px 6px;
@@ -345,4 +404,332 @@ html, body {
   display: inline-block;
   margin: 0 6px;
   color: rgba(255, 255, 255, 0.25);
+}
+
+/* =============================================================================
+   TELA DE SELEÇÃO DE MUNDOS
+   ============================================================================= */
+.modal-worlds {
+  max-width: 680px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.worlds-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 380px;
+  overflow-y: auto;
+  padding-right: 6px;
+  margin-bottom: 20px;
+}
+
+.worlds-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.worlds-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+.world-item-card {
+  background: rgba(30, 41, 59, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 14px 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: all 0.2s ease;
+}
+
+.world-item-card:hover {
+  background: rgba(51, 65, 85, 0.75);
+  border-color: rgba(56, 189, 248, 0.4);
+}
+
+.world-info {
+  text-align: left;
+}
+
+.world-name {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #f8fafc;
+  margin-bottom: 3px;
+}
+
+.world-details {
+  font-size: 0.82rem;
+  color: #94a3b8;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.world-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-world-action {
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  font-family: inherit;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.btn-enter {
+  background: #0284c7;
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.btn-enter:hover {
+  background: #0ea5e9;
+  transform: translateY(-1px);
+}
+
+.btn-delete {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.btn-delete:hover {
+  background: rgba(239, 68, 68, 0.8);
+  color: #ffffff;
+}
+
+.worlds-empty-msg {
+  padding: 30px;
+  color: #94a3b8;
+  font-size: 0.95rem;
+}
+
+.worlds-footer-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+/* =============================================================================
+   FORMULÁRIO DE CRIAÇÃO DE MUNDO
+   ============================================================================= */
+.form-group {
+  text-align: left;
+  margin-bottom: 18px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #cbd5e1;
+  margin-bottom: 6px;
+}
+
+.form-input {
+  width: 100%;
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
+  padding: 12px 16px;
+  font-size: 1rem;
+  color: #ffffff;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.form-input:focus {
+  border-color: #38bdf8;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.3);
+}
+
+.seed-input-wrapper {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-seed {
+  white-space: nowrap;
+  padding: 10px 16px;
+  font-size: 0.88rem;
+}
+
+.form-hint {
+  font-size: 0.78rem;
+  color: #94a3b8;
+  margin-top: 5px;
+}
+
+.create-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 24px;
+}
+
+/* =============================================================================
+   INVENTÁRIO (E) - ESTILO MINECRAFT COM DESIGN MODERNO
+   ============================================================================= */
+.inventory-window {
+  background: linear-gradient(145deg, rgba(26, 36, 60, 0.95), rgba(15, 23, 42, 0.98));
+  border: 2px solid rgba(255, 255, 255, 0.18);
+  border-radius: 16px;
+  padding: 24px 28px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 35px rgba(56, 189, 248, 0.15);
+  animation: modalEnter 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.inventory-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 8px;
+  margin-bottom: 6px;
+}
+
+.inventory-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: #e2e8f0;
+}
+
+.btn-close-inv {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.btn-close-inv:hover {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+.inventory-section-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  text-align: left;
+}
+
+.inv-grid {
+  display: grid;
+  grid-template-columns: repeat(9, 48px);
+  gap: 6px;
+  background: rgba(15, 23, 42, 0.75);
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.inv-grid-hotbar {
+  background: rgba(20, 30, 50, 0.85);
+  border-color: rgba(56, 189, 248, 0.3);
+}
+
+.inv-slot {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  background: rgba(30, 41, 59, 0.8);
+  border: 2px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.inv-slot:hover {
+  background: rgba(51, 65, 85, 0.95);
+  border-color: #38bdf8;
+}
+
+.inventory-footer-tip {
+  font-size: 0.78rem;
+  color: #94a3b8;
+  text-align: center;
+  margin-top: 6px;
+}
+
+/* Item flutuante do cursor */
+#inventory-cursor-item {
+  position: fixed;
+  width: 42px;
+  height: 42px;
+  pointer-events: none;
+  z-index: 1000;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cursor-item-icon {
+  width: 32px;
+  height: 32px;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.6));
+}
+
+.cursor-item-count {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  font-size: 0.8rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 700;
+  color: #ffffff;
+  text-shadow: 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;
+}
+
+/* =============================================================================
+   NOTIFICAÇÕES TOAST
+   ============================================================================= */
+.toast {
+  position: fixed;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-20px);
+  background: rgba(15, 23, 42, 0.9);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  color: #f8fafc;
+  padding: 10px 22px;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 15px rgba(56, 189, 248, 0.3);
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: 999;
+}
+
+.toast.visible {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
 }

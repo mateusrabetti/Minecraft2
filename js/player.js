@@ -1,49 +1,58 @@
 // =============================================================================
-// js/player.js - Jogador em Primeira Pessoa, Câmera, Movimentação e Interação
+// js/player.js - Jogador em Primeira Pessoa, Voo, Câmera, Quebra e Colocação
 // =============================================================================
 
 class Player {
-  constructor(camera, world, physics, scene) {
+  constructor(camera, world, physics, scene, inventory) {
     this.camera = camera;
     this.world = world;
     this.physics = physics;
     this.scene = scene;
+    this.inventory = inventory;
 
-    // Posição inicial no centro do mundo
-    this.position = { x: 16.5, y: 12.0, z: 16.5 };
+    // Posição no mundo (centro do mapa 128x128)
+    this.position = { x: 64.5, y: 20.0, z: 64.5 };
     this.velocity = { x: 0, y: 0, z: 0 };
 
-    // Orientação da visão inicial (levemente angulado para admirar o mundo)
+    // Orientação da visão
     this.yaw = -Math.PI / 4;
     this.pitch = -0.15;
     this.mouseSensitivity = 0.0022;
 
-    // Configurações de velocidade e aceleração
+    // Configurações de velocidade
     this.walkSpeed = 4.8;
-    this.sprintSpeed = 7.0;
+    this.sprintSpeed = 7.2;
+    this.flySpeed = 10.5;
+    this.flyVerticalSpeed = 7.5;
     this.accelGround = 18.0;
     this.accelAir = 5.0;
 
-    // Bloco atualmente selecionado na barra de blocos
-    this.selectedBlock = BLOCK_GRASS;
+    // Modo de Voo
+    this.isFlying = false;
 
     // Alvo atual do raycast
     this.targetBlock = null;
 
-    // Inicializa a câmera
+    // Câmera
     this.camera.rotation.order = 'YXZ';
 
-    // Cria a caixa de seleção visual (contorno preto ao redor do bloco olhado)
+    // Caixa de seleção aramada do bloco olhado
     this.initSelectionBox();
 
-    // Inicializa sintetizador de áudio procedural leve
+    // Áudio procedural Web Audio API
     this.initAudio();
 
-    // Ajusta o spawn no topo do terreno mais alto do centro
-    this.findSpawnPosition();
-
-    // Sincroniza a câmera imediatamente
+    // Sincroniza a câmera
     this.updateCamera();
+  }
+
+  // Define um novo mundo para o jogador
+  setWorld(world) {
+    this.world = world;
+    this.targetBlock = null;
+    if (this.selectionBox) {
+      this.selectionBox.visible = false;
+    }
   }
 
   // Atualiza posição e orientação da câmera
@@ -58,23 +67,86 @@ class Player {
     this.camera.rotation.z = 0;
   }
 
-  // Encontra uma posição segura sobre o solo para spawnar o jogador
-  findSpawnPosition() {
-    const sx = 16;
-    const sz = 16;
-    let groundY = 8;
-    for (let y = this.world.sizeY - 1; y >= 0; y--) {
-      if (this.world.isSolid(sx, y, sz)) {
-        groundY = y;
-        break;
-      }
-    }
-    this.position.x = sx + 0.5;
-    this.position.y = groundY + 1.1;
-    this.position.z = sz + 0.5;
+  // Alterna o modo de voo (ativado por duplo toque no Espaço)
+  toggleFlight() {
+    this.isFlying = !this.isFlying;
+    this.velocity.y = 0;
+    this.playSound('fly');
   }
 
-  // Caixa de contorno aramado preto indicando o bloco focado
+  // Encontra posição segura de spawn sobre o terreno em terra firme
+  findSpawnPosition() {
+    const startX = Math.floor(this.position.x);
+    const startZ = Math.floor(this.position.z);
+    let bestX = startX;
+    let bestZ = startZ;
+    let bestY = 14;
+    let foundSafe = false;
+
+    // Busca em espiral um ponto de terra firme acima do nível da água com espaço livre
+    const maxRadius = 12;
+    for (let r = 0; r <= maxRadius && !foundSafe; r++) {
+      for (let dx = -r; dx <= r && !foundSafe; dx++) {
+        for (let dz = -r; dz <= r && !foundSafe; dz++) {
+          if (Math.abs(dx) !== r && Math.abs(dz) !== r) continue;
+          const tx = startX + dx;
+          const tz = startZ + dz;
+          if (tx < 4 || tx >= this.world.sizeX - 4 || tz < 4 || tz >= this.world.sizeZ - 4) continue;
+
+          for (let y = this.world.sizeY - 3; y >= 11; y--) {
+            if (this.world.isSolid(tx, y, tz) &&
+                !this.world.isSolid(tx, y + 1, tz) &&
+                !this.world.isSolid(tx, y + 2, tz) &&
+                !this.world.isLiquid(tx, y + 1, tz)) {
+              bestX = tx;
+              bestZ = tz;
+              bestY = y;
+              foundSafe = true;
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    this.position.x = bestX + 0.5;
+    this.position.z = bestZ + 0.5;
+    this.position.y = bestY + 1.05;
+    this.velocity.x = 0;
+    this.velocity.y = 0;
+    this.velocity.z = 0;
+  }
+
+  // Restaura estado salvo do jogador
+  restoreState(state) {
+    if (!state) {
+      this.findSpawnPosition();
+      return;
+    }
+    if (state.x !== undefined && state.y !== undefined && state.z !== undefined) {
+      this.position.x = state.x;
+      this.position.y = state.y;
+      this.position.z = state.z;
+    } else {
+      this.findSpawnPosition();
+    }
+    if (state.yaw !== undefined) this.yaw = state.yaw;
+    if (state.pitch !== undefined) this.pitch = state.pitch;
+    if (state.isFlying !== undefined) this.isFlying = state.isFlying;
+    else this.isFlying = false;
+
+    this.velocity.x = 0;
+    this.velocity.y = 0;
+    this.velocity.z = 0;
+
+    if (this.selectionBox) {
+      this.selectionBox.visible = false;
+    }
+
+    this.updateCamera();
+  }
+
+  // Inicializa contorno aramado preto ao focar em um bloco
   initSelectionBox() {
     const geom = new THREE.BoxGeometry(1.004, 1.004, 1.004);
     const edges = new THREE.EdgesGeometry(geom);
@@ -84,7 +156,7 @@ class Player {
     this.scene.add(this.selectionBox);
   }
 
-  // Efeitos sonoros procedurais simples usando a Web Audio API (sem arquivos externos)
+  // Efeitos sonoros procedurais leves (Web Audio API)
   initAudio() {
     try {
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -100,56 +172,71 @@ class Player {
       this.audioCtx.resume();
     }
 
+    const now = this.audioCtx.currentTime;
     const osc = this.audioCtx.createOscillator();
     const gain = this.audioCtx.createGain();
     osc.connect(gain);
     gain.connect(this.audioCtx.destination);
 
-    const now = this.audioCtx.currentTime;
-
     if (type === 'break') {
-      // Som de quebrar bloco (pop crocante)
+      // Pop crocante ao quebrar
       osc.type = 'triangle';
-      osc.frequency.setValueAtTime(260, now);
-      osc.frequency.exponentialRampToValueAtTime(80, now + 0.08);
-      gain.gain.setValueAtTime(0.2, now);
+      osc.frequency.setValueAtTime(280, now);
+      osc.frequency.exponentialRampToValueAtTime(70, now + 0.08);
+      gain.gain.setValueAtTime(0.22, now);
       gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
       osc.start(now);
       osc.stop(now + 0.08);
     } else if (type === 'place') {
-      // Som de colocar bloco (impacto surdo)
+      // Som firme ao posicionar
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(160, now);
+      osc.frequency.exponentialRampToValueAtTime(65, now + 0.07);
+      gain.gain.setValueAtTime(0.25, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.07);
+      osc.start(now);
+      osc.stop(now + 0.07);
+    } else if (type === 'jump') {
+      // Pulo suave
       osc.type = 'sine';
       osc.frequency.setValueAtTime(140, now);
-      osc.frequency.exponentialRampToValueAtTime(60, now + 0.06);
-      gain.gain.setValueAtTime(0.25, now);
-      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.06);
+      osc.frequency.exponentialRampToValueAtTime(260, now + 0.1);
+      gain.gain.setValueAtTime(0.12, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
       osc.start(now);
-      osc.stop(now + 0.06);
+      osc.stop(now + 0.1);
+    } else if (type === 'fly') {
+      // Tom agudo indicando alternância de modo de voo
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(440, now);
+      osc.frequency.exponentialRampToValueAtTime(880, now + 0.14);
+      gain.gain.setValueAtTime(0.18, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.14);
+      osc.start(now);
+      osc.stop(now + 0.14);
     }
   }
 
-  // Processa movimento do mouse para rotação da câmera
+  // Rotação da câmera pelo mouse
   handleMouseMove(deltaX, deltaY) {
     this.yaw -= deltaX * this.mouseSensitivity;
     this.pitch -= deltaY * this.mouseSensitivity;
 
-    // Limita a rotação vertical (pitch) entre cerca de -89° e +89° para não inverter a visão
     const maxPitch = Math.PI / 2 - 0.02;
     this.pitch = Math.max(-maxPitch, Math.min(maxPitch, this.pitch));
   }
 
-  // Atualização a cada quadro (física, câmera e raycast)
-  update(dt, inputState) {
-    // 1. Processa entrada de movimento relativo à orientação da visão
+  // Atualização por quadro (física, câmera e mira)
+  update(dt, inputKeys) {
+    // 1. Processa movimentação horizontal
     let moveForward = 0;
     let moveRight = 0;
 
-    if (inputState.forward) moveForward += 1;
-    if (inputState.backward) moveForward -= 1;
-    if (inputState.right) moveRight += 1;
-    if (inputState.left) moveRight -= 1;
+    if (inputKeys.forward) moveForward += 1;
+    if (inputKeys.backward) moveForward -= 1;
+    if (inputKeys.right) moveRight += 1;
+    if (inputKeys.left) moveRight -= 1;
 
-    // Direções relativas ao Yaw
     const fwdX = -Math.sin(this.yaw);
     const fwdZ = -Math.cos(this.yaw);
     const rightX = Math.cos(this.yaw);
@@ -164,45 +251,68 @@ class Player {
       moveZ /= moveLen;
     }
 
-    const currentSpeed = inputState.shift ? this.sprintSpeed : this.walkSpeed;
-    const targetVelX = moveX * currentSpeed;
-    const targetVelZ = moveZ * currentSpeed;
+    if (this.isFlying) {
+      // ==========================================
+      // MOVIMENTO EM MODO VOO
+      // ==========================================
+      const speed = this.flySpeed;
+      this.velocity.x = moveX * speed;
+      this.velocity.z = moveZ * speed;
 
-    // Aceleração/fricção suave
-    const accel = this.physics.onGround ? this.accelGround : this.accelAir;
-    const lerpFactor = Math.min(1.0, accel * dt);
-    this.velocity.x += (targetVelX - this.velocity.x) * lerpFactor;
-    this.velocity.z += (targetVelZ - this.velocity.z) * lerpFactor;
+      // Subir com Espaço, descer com Shift
+      if (inputKeys.jump) {
+        this.velocity.y = this.flyVerticalSpeed;
+      } else if (inputKeys.shift) {
+        this.velocity.y = -this.flyVerticalSpeed;
+      } else {
+        // Amortecimento vertical suave
+        this.velocity.y *= Math.pow(0.05, dt);
+        if (Math.abs(this.velocity.y) < 0.1) this.velocity.y = 0;
+      }
+    } else {
+      // ==========================================
+      // MOVIMENTO TERRESTRE NORMAL
+      // ==========================================
+      const isSprinting = inputKeys.shift && !this.physics.inWater;
+      const speed = isSprinting ? this.sprintSpeed : this.walkSpeed;
+      const targetVelX = moveX * speed;
+      const targetVelZ = moveZ * speed;
 
-    // Pulo
-    if (inputState.jump && this.physics.onGround) {
-      this.velocity.y = this.physics.jumpSpeed;
-      this.physics.onGround = false;
+      const accel = this.physics.onGround ? this.accelGround : this.accelAir;
+      const lerpFactor = Math.min(1.0, accel * dt);
+      this.velocity.x += (targetVelX - this.velocity.x) * lerpFactor;
+      this.velocity.z += (targetVelZ - this.velocity.z) * lerpFactor;
+
+      // Pulo normal
+      if (inputKeys.jump && this.physics.onGround) {
+        this.velocity.y = this.physics.jumpSpeed;
+        this.physics.onGround = false;
+        this.playSound('jump');
+      }
     }
 
-    // 2. Atualiza a física e resolução de colisão
-    this.physics.update(this.position, this.velocity, this.world, dt);
-
-    // 3. Atualiza a câmera para a posição dos olhos do jogador
-    this.camera.position.set(
-      this.position.x,
-      this.position.y + this.physics.eyeHeight,
-      this.position.z
+    // 2. Atualiza a física com resolução de colisão AABB
+    this.physics.update(
+      this.position,
+      this.velocity,
+      this.world,
+      dt,
+      this.isFlying,
+      inputKeys.jump
     );
-    this.camera.rotation.y = this.yaw;
-    this.camera.rotation.x = this.pitch;
-    this.camera.rotation.z = 0;
+
+    // 3. Atualiza câmera para os olhos do jogador
+    this.updateCamera();
 
     // 4. Raycasting para detecção do bloco em foco
     this.updateTargetBlock();
   }
 
-  // Atualiza o bloco sob a mira usando o Raycasting da câmera
+  // Atualiza bloco sob a mira
   updateTargetBlock() {
     const dir = new THREE.Vector3();
     this.camera.getWorldDirection(dir);
 
-    // Alcance máximo de interação de 5 blocos
     this.targetBlock = this.world.raycast(this.camera.position, dir, 5.0);
 
     if (this.targetBlock) {
@@ -222,14 +332,29 @@ class Player {
     // Não quebrar bedrock (y === 0)
     if (y === 0) return;
 
+    const blockType = this.world.getBlock(x, y, z);
+    const def = BLOCK_TYPES[blockType];
+    if (!def || !def.breakable) return;
+
+    // Altera no mundo
     this.world.setBlock(x, y, z, BLOCK_AIR);
     this.playSound('break');
+
+    // Adiciona o item correspondente ao inventário do jogador
+    if (def.dropItem !== null && def.dropItem !== undefined) {
+      this.inventory.addItem(def.dropItem, 1);
+    }
+
     this.updateTargetBlock();
   }
 
   // Ação de Colocar Bloco (Clique Direito)
   placeBlock() {
     if (!this.targetBlock) return;
+
+    // Obtém o bloco atualmente selecionado na Hotbar
+    const hotbarItem = this.inventory.getSelectedHotbarItem();
+    if (!hotbarItem || hotbarItem.count <= 0) return;
 
     const target = this.targetBlock.block;
     const normal = this.targetBlock.normal;
@@ -238,24 +363,21 @@ class Player {
     const placeY = target.y + normal.y;
     const placeZ = target.z + normal.z;
 
-    // 1. Limite de altura e limites do mundo
+    // 1. Limites do mundo
     if (!this.world.inBounds(placeX, placeY, placeZ)) return;
 
-    // 2. Não permitir colocar blocos dentro do corpo do jogador!
+    // 2. Não sobrepor o corpo do jogador
     if (this.physics.overlapsPlayer(placeX, placeY, placeZ, this.position)) {
       return;
     }
 
-    // 3. Posiciona o bloco
-    this.world.setBlock(placeX, placeY, placeZ, this.selectedBlock);
-    this.playSound('place');
-    this.updateTargetBlock();
-  }
-
-  // Define qual bloco está ativo na mão do jogador
-  setSelectedBlock(blockId) {
-    if (BLOCK_TYPES[blockId]) {
-      this.selectedBlock = blockId;
+    // 3. Posiciona o bloco no mundo
+    const placed = this.world.setBlock(placeX, placeY, placeZ, hotbarItem.id);
+    if (placed) {
+      this.playSound('place');
+      // 4. Consome 1 unidade do inventário
+      this.inventory.consumeSelectedItem();
+      this.updateTargetBlock();
     }
   }
 }

@@ -3,67 +3,235 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Block World - Jogo 3D Voxel</title>
-  <meta name="description" content="Jogo 3D de blocos para navegador inspirado em Minecraft, construído em HTML, CSS e JavaScript com Three.js.">
+  <title>Block World - Jogo 3D Voxel Sobrevivência</title>
+  <meta name="description" content="Jogo 3D voxel de blocos inspirado em Minecraft com mundos procedurais, biomas, árvores, mineração, voo e inventário.">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <!-- Canvas 3D do Three.js -->
   <div id="canvas-container"></div>
 
-  <!-- Mira central -->
+  <!-- Mira central (Crosshair) -->
   <div id="crosshair" class="hidden"></div>
 
-  <!-- HUD superior (Coordenadas / Info) -->
-  <div id="top-hud">
-    <div id="debug-coords" class="hud-badge">XYZ: 0.0 / 0.0 / 0.0</div>
+  <!-- HUD Superior (Coordenadas, Bioma e Indicador de Voo) -->
+  <div id="top-hud" class="hidden">
+    <div id="hud-coords" class="hud-badge">XYZ: 64.0 / 18.0 / 64.0</div>
+    <div id="hud-biome" class="hud-badge">Bioma: Floresta</div>
+    <div id="hud-fly-badge" class="hud-badge hud-badge-fly hidden">✈ MODO VOO</div>
   </div>
 
-  <!-- Barra de blocos inferior (Hotbar) -->
-  <div id="hotbar-wrapper">
+  <!-- Barra de Acesso Rápido Inferior (Hotbar) -->
+  <div id="hotbar-wrapper" class="hidden">
     <div id="selected-block-label">
       Bloco: <span id="selected-block-name">Grama</span>
     </div>
     <div id="hotbar"></div>
   </div>
 
-  <!-- Tela Inicial e de Pausa (Overlay) -->
-  <div id="screen-overlay">
-    <div class="overlay-modal">
+  <!-- Item flutuante do cursor no inventário -->
+  <div id="inventory-cursor-item" class="hidden">
+    <img class="cursor-item-icon" src="" alt="Cursor Item">
+    <span class="cursor-item-count"></span>
+  </div>
+
+  <!-- =========================================================================
+       TELAS E MENUS (OVERLAYS)
+       ========================================================================= -->
+
+  <!-- 1. MENU PRINCIPAL -->
+  <div id="screen-main-menu" class="screen-overlay">
+    <div class="overlay-modal modal-menu">
       <div class="title-container">
-        <h1 id="overlay-title" class="overlay-title">BLOCK WORLD</h1>
-        <p class="overlay-subtitle">Mundo Voxel 3D no Navegador</p>
+        <h1 class="overlay-title">BLOCK WORLD</h1>
+        <p class="overlay-subtitle">Sobrevivência Voxel 3D</p>
       </div>
 
-      <button id="play-btn" class="btn-play">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-          <polygon points="5 3 19 12 5 21 5 3"></polygon>
-        </svg>
-        JOGAR
-      </button>
+      <div class="menu-button-group">
+        <button id="btn-main-play" class="btn-primary">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+          </svg>
+          JOGAR
+        </button>
+
+        <button id="btn-main-worlds" class="btn-secondary">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="7" height="7"></rect>
+            <rect x="14" y="3" width="7" height="7"></rect>
+            <rect x="14" y="14" width="7" height="7"></rect>
+            <rect x="3" y="14" width="7" height="7"></rect>
+          </svg>
+          MUNDOS
+        </button>
+
+        <button id="btn-main-settings" class="btn-secondary">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+          CONFIGURAÇÕES
+        </button>
+      </div>
 
       <div class="controls-container">
-        <div class="controls-header">Controles do Jogo</div>
+        <div class="controls-header">Guia Rápido de Controles</div>
         <p class="controls-text">
-          <span class="key-badge">W</span><span class="key-badge">A</span><span class="key-badge">S</span><span class="key-badge">D</span> para mover
+          <span class="key-badge">W</span><span class="key-badge">A</span><span class="key-badge">S</span><span class="key-badge">D</span> mover
           <span class="controls-divider">•</span>
-          <span class="key-badge">Espaço</span> para pular
+          <span class="key-badge">Espaço</span> pular
           <span class="controls-divider">•</span>
-          <span class="key-badge">Mouse</span> para olhar
+          <span class="key-badge">2x Espaço</span> voar
           <br>
-          <span class="key-badge">Clique Esquerdo</span> para quebrar
+          <span class="key-badge">E</span> inventário
           <span class="controls-divider">•</span>
-          <span class="key-badge">Clique Direito</span> para construir
+          <span class="key-badge">1 - 9</span> hotbar
+          <span class="controls-divider">•</span>
+          <span class="key-badge">ESC</span> pausar
           <br>
-          <span class="key-badge">1 - 5</span> ou <span class="key-badge">Scroll</span> para escolher bloco
+          <span class="key-badge">Botão Esquerdo</span> quebrar
           <span class="controls-divider">•</span>
-          <span class="key-badge">ESC</span> para pausar
+          <span class="key-badge">Botão Direito</span> construir
         </p>
       </div>
     </div>
   </div>
 
-  <!-- Scripts do Jogo (Three.js local com fallback para CDN) -->
+  <!-- 2. TELA DE MUNDOS (MEUS MUNDOS) -->
+  <div id="screen-worlds" class="screen-overlay hidden">
+    <div class="overlay-modal modal-worlds">
+      <div class="title-container">
+        <h2 class="overlay-title">MEUS MUNDOS</h2>
+        <p class="overlay-subtitle">Selecione um mundo salvo ou comece uma nova jornada</p>
+      </div>
+
+      <div id="worlds-list-container" class="worlds-list">
+        <!-- Itens inseridos dinamicamente pelo UI.js -->
+      </div>
+
+      <div class="worlds-footer-actions">
+        <button id="btn-open-create-world" class="btn-primary">
+          + CRIAR NOVO MUNDO
+        </button>
+        <button id="btn-worlds-back" class="btn-secondary">
+          VOLTAR
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. TELA DE CRIAR NOVO MUNDO -->
+  <div id="screen-create-world" class="screen-overlay hidden">
+    <div class="overlay-modal modal-create">
+      <div class="title-container">
+        <h2 class="overlay-title">CRIAR NOVO MUNDO</h2>
+        <p class="overlay-subtitle">Personalize os parâmetros de geração</p>
+      </div>
+
+      <div class="form-group">
+        <label for="input-world-name">Nome do Mundo</label>
+        <input type="text" id="input-world-name" class="form-input" placeholder="Ex: Meu Mundo Voxel" value="Meu Mundo">
+      </div>
+
+      <div class="form-group">
+        <label for="input-world-seed">Seed do Terreno (Opcional)</label>
+        <div class="seed-input-wrapper">
+          <input type="text" id="input-world-seed" class="form-input" placeholder="Ex: 839201">
+          <button id="btn-random-seed" class="btn-secondary btn-seed" type="button" title="Gerar Seed Aleatória">
+            🎲 ALEATÓRIA
+          </button>
+        </div>
+        <p class="form-hint">Mundos com a mesma seed geram exatamente o mesmo terreno.</p>
+      </div>
+
+      <div class="create-actions">
+        <button id="btn-confirm-create-world" class="btn-primary">
+          CRIAR E ENTRAR
+        </button>
+        <button id="btn-cancel-create-world" class="btn-secondary">
+          CANCELAR
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. TELA DE PAUSA -->
+  <div id="screen-pause" class="screen-overlay hidden">
+    <div class="overlay-modal modal-pause">
+      <div class="title-container">
+        <h2 class="overlay-title">JOGO PAUSADO</h2>
+        <p class="overlay-subtitle">O progresso é salvo automaticamente</p>
+      </div>
+
+      <div class="menu-button-group">
+        <button id="btn-pause-resume" class="btn-primary">
+          CONTINUAR
+        </button>
+        <button id="btn-pause-menu" class="btn-secondary">
+          SALVAR E VOLTAR AO MENU
+        </button>
+      </div>
+
+      <div class="controls-container">
+        <div class="controls-header">Dicas de Sobrevivência</div>
+        <p class="controls-text">
+          Pressione <span class="key-badge">E</span> para gerenciar seu inventário.<br>
+          Dê um duplo clique rápido em <span class="key-badge">Espaço</span> para voar livremente.<br>
+          Enquanto voa: <span class="key-badge">Espaço</span> sobe, <span class="key-badge">Shift</span> desce.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. TELA DE INVENTÁRIO (E) -->
+  <div id="screen-inventory" class="screen-overlay hidden">
+    <div class="inventory-window">
+      <div class="inventory-header">
+        <span class="inventory-title">INVENTÁRIO DO JOGADOR</span>
+        <button id="btn-close-inventory" class="btn-close-inv" title="Fechar (E / ESC)">✕</button>
+      </div>
+
+      <div class="inventory-section-label">Mochila</div>
+      <!-- Grade Principal (3 linhas x 9 colunas = 27 slots) -->
+      <div id="inv-main-grid" class="inv-grid"></div>
+
+      <div class="inventory-section-label">Barra de Acesso Rápido (Hotbar)</div>
+      <!-- Linha da Hotbar (1 linha x 9 colunas = 9 slots) -->
+      <div id="inv-hotbar-grid" class="inv-grid inv-grid-hotbar"></div>
+
+      <div class="inventory-footer-tip">
+        Clique esquerdo: pegar/trocar stack • Clique direito: dividir stack ou soltar 1
+      </div>
+    </div>
+  </div>
+
+  <!-- 6. TELA DE CONFIGURAÇÕES -->
+  <div id="screen-settings" class="screen-overlay hidden">
+    <div class="overlay-modal modal-settings">
+      <div class="title-container">
+        <h2 class="overlay-title">CONFIGURAÇÕES</h2>
+      </div>
+
+      <div class="form-group">
+        <label>Distância do Mundo: 128 x 128 Blocos (64 Chunks)</label>
+        <p class="form-hint">Renderização ultra-otimizada via BufferGeometry com culling de faces.</p>
+      </div>
+
+      <div class="form-group">
+        <label>Áudio Procedural: Ativo (Web Audio API)</label>
+        <p class="form-hint">Efeitos sonoros gerados em tempo real sem arquivos externos.</p>
+      </div>
+
+      <button id="btn-settings-close" class="btn-primary" style="margin-top: 15px;">
+        VOLTAR
+      </button>
+    </div>
+  </div>
+
+  <!-- Notificação Toast -->
+  <div id="toast-notification" class="toast"></div>
+
+  <!-- Bibliotecas do Jogo (Three.js local com fallback para CDN) -->
   <script src="js/libs/three.min.js"></script>
   <script>
     if (typeof THREE === 'undefined') {
@@ -71,10 +239,15 @@
     }
   </script>
 
-  <!-- Módulos da aplicação -->
+  <!-- Módulos da Aplicação (Ordem correta de dependências) -->
   <script src="js/blocks.js"></script>
+  <script src="js/terrain.js"></script>
+  <script src="js/chunk.js"></script>
   <script src="js/world.js"></script>
   <script src="js/physics.js"></script>
+  <script src="js/inventory.js"></script>
+  <script src="js/saveSystem.js"></script>
+  <script src="js/worldManager.js"></script>
   <script src="js/player.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/input.js"></script>

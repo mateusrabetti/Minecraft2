@@ -1,11 +1,10 @@
 // =============================================================================
-// js/input.js - Captura de Teclado, Mouse e Pointer Lock API
+// js/input.js - Captura de Teclado, Mouse, Pointer Lock e Detecção de Duplo Pulo
 // =============================================================================
 
 class Input {
-  constructor(player, ui) {
-    this.player = player;
-    this.ui = ui;
+  constructor(game) {
+    this.game = game;
 
     // Estado das teclas de movimentação
     this.keys = {
@@ -19,6 +18,10 @@ class Input {
 
     this.isPointerLocked = false;
 
+    // Detecção de duplo pulo para voo
+    this.lastSpacePress = 0;
+    this.doubleTapThreshold = 320; // 320ms entre toques
+
     this.initKeyboard();
     this.initMouse();
     this.initPointerLock();
@@ -26,7 +29,32 @@ class Input {
 
   initKeyboard() {
     window.addEventListener('keydown', (e) => {
-      // Ignora repetição se não necessário ou fora do jogo
+      // Ignora se estiver digitando em campos de texto (como nome/seed do mundo)
+      if (e.target.tagName === 'INPUT') return;
+
+      // Tecla 'E': Abre / Fecha Inventário
+      if (e.code === 'KeyE') {
+        e.preventDefault();
+        if (this.game.state === 'PLAYING') {
+          this.game.openInventory();
+        } else if (this.game.state === 'INVENTORY') {
+          this.game.closeInventory();
+        }
+        return;
+      }
+
+      // Tecla 'Escape': Fecha Inventário ou Pausa
+      if (e.code === 'Escape') {
+        if (this.game.state === 'INVENTORY') {
+          e.preventDefault();
+          this.game.closeInventory();
+          return;
+        }
+      }
+
+      // Se não estiver jogando, ignora teclas de movimentação
+      if (this.game.state !== 'PLAYING') return;
+
       switch (e.code) {
         case 'KeyW':
         case 'ArrowUp':
@@ -47,28 +75,34 @@ class Input {
         case 'Space':
           this.keys.jump = true;
           e.preventDefault();
+
+          // Ignora repetição automática do sistema operacional ao segurar Espaço
+          if (e.repeat) break;
+
+          // Detecção de Duplo Toque no Espaço para Ativar/Desativar Voo
+          const now = performance.now();
+          if (now - this.lastSpacePress < this.doubleTapThreshold) {
+            this.game.player.toggleFlight();
+            this.lastSpacePress = 0;
+          } else {
+            this.lastSpacePress = now;
+          }
           break;
         case 'ShiftLeft':
         case 'ShiftRight':
           this.keys.shift = true;
           break;
 
-        // Seleção rápida de blocos pelos números 1 a 5
-        case 'Digit1':
-          this.ui.selectSlot(0);
-          break;
-        case 'Digit2':
-          this.ui.selectSlot(1);
-          break;
-        case 'Digit3':
-          this.ui.selectSlot(2);
-          break;
-        case 'Digit4':
-          this.ui.selectSlot(3);
-          break;
-        case 'Digit5':
-          this.ui.selectSlot(4);
-          break;
+        // Seleção rápida da Hotbar pelos números 1 a 9 e teclado numérico
+        case 'Digit1': case 'Numpad1': this.game.ui.selectHotbarSlot(0); break;
+        case 'Digit2': case 'Numpad2': this.game.ui.selectHotbarSlot(1); break;
+        case 'Digit3': case 'Numpad3': this.game.ui.selectHotbarSlot(2); break;
+        case 'Digit4': case 'Numpad4': this.game.ui.selectHotbarSlot(3); break;
+        case 'Digit5': case 'Numpad5': this.game.ui.selectHotbarSlot(4); break;
+        case 'Digit6': case 'Numpad6': this.game.ui.selectHotbarSlot(5); break;
+        case 'Digit7': case 'Numpad7': this.game.ui.selectHotbarSlot(6); break;
+        case 'Digit8': case 'Numpad8': this.game.ui.selectHotbarSlot(7); break;
+        case 'Digit9': case 'Numpad9': this.game.ui.selectHotbarSlot(8); break;
       }
     });
 
@@ -102,67 +136,87 @@ class Input {
   }
 
   initMouse() {
-    // Movimento do mouse para controlar a visão (apenas quando em Pointer Lock)
+    // Rotação da câmera pelo mouse quando bloqueado
     window.addEventListener('mousemove', (e) => {
-      if (!this.isPointerLocked) return;
-      this.player.handleMouseMove(e.movementX || 0, e.movementY || 0);
+      if (!this.isPointerLocked || this.game.state !== 'PLAYING') return;
+      this.game.player.handleMouseMove(e.movementX || 0, e.movementY || 0);
     });
 
-    // Cliques do mouse (apenas quando travado)
+    // Cliques para quebrar e posicionar blocos
     window.addEventListener('mousedown', (e) => {
-      if (!this.isPointerLocked) return;
+      if (!this.isPointerLocked || this.game.state !== 'PLAYING') return;
 
       if (e.button === 0) {
-        // Botão Esquerdo: Quebrar bloco
-        this.player.breakBlock();
+        // Botão Esquerdo: Quebra Bloco
+        this.game.player.breakBlock();
+        this.game.ui.updateHotbar();
       } else if (e.button === 2) {
-        // Botão Direito: Colocar bloco
-        this.player.placeBlock();
+        // Botão Direito: Coloca Bloco
+        this.game.player.placeBlock();
+        this.game.ui.updateHotbar();
       }
     });
 
-    // Scroll do mouse para alternar o bloco selecionado
+    // Scroll do mouse para alternar item selecionado na Hotbar
     window.addEventListener('wheel', (e) => {
-      if (!this.isPointerLocked) return;
+      if (!this.isPointerLocked || this.game.state !== 'PLAYING') return;
       if (e.deltaY > 0) {
-        this.ui.selectNextSlot();
+        this.game.ui.selectNextHotbarSlot();
       } else if (e.deltaY < 0) {
-        this.ui.selectPrevSlot();
+        this.game.ui.selectPrevHotbarSlot();
       }
     });
 
-    // Desativa o menu de contexto padrão do botão direito
+    // Desativa menu de contexto padrão do botão direito
     window.addEventListener('contextmenu', (e) => {
       e.preventDefault();
     });
   }
 
   initPointerLock() {
-    // Escuta mudanças no bloqueio de ponteiro
     document.addEventListener('pointerlockchange', () => {
       const isLocked = document.pointerLockElement === document.body;
       this.isPointerLocked = isLocked;
 
       if (isLocked) {
-        this.ui.hideStartScreen();
+        // Se travou o mouse, entra no jogo
+        if (this.game.state !== 'PLAYING') {
+          this.game.state = 'PLAYING';
+          this.game.ui.showInGameHUD();
+        }
       } else {
-        // Se o usuário apertar ESC ou perder foco, mostra tela de pausa
-        this.ui.showPauseScreen();
-        // Reseta teclas para não ficarem presas
+        // Se destravou o mouse:
         this.resetKeys();
+
+        // Se estava no jogo ativo e destravou (ex: pressionou ESC), pausa
+        if (this.game.state === 'PLAYING') {
+          this.game.pauseGame();
+        }
+        // Se estava em INVENTORY, permanece em INVENTORY
       }
     });
   }
 
-  // Solicita o bloqueio do ponteiro do mouse ao clicar em JOGAR
   requestPointerLock() {
-    document.body.requestPointerLock =
-      document.body.requestPointerLock ||
-      document.body.mozRequestPointerLock ||
-      document.body.webkitRequestPointerLock;
+    try {
+      const el = document.body;
+      const fn = el.requestPointerLock || el.mozRequestPointerLock || el.webkitRequestPointerLock;
+      if (fn) {
+        fn.call(el);
+      }
+    } catch (e) {
+      console.warn('Erro ao requisitar Pointer Lock:', e);
+    }
+  }
 
-    if (document.body.requestPointerLock) {
-      document.body.requestPointerLock();
+  exitPointerLock() {
+    try {
+      const fn = document.exitPointerLock || document.mozExitPointerLock || document.webkitExitPointerLock;
+      if (fn) {
+        fn.call(document);
+      }
+    } catch (e) {
+      console.warn('Erro ao sair do Pointer Lock:', e);
     }
   }
 
